@@ -72,3 +72,5 @@ nunit-*.xml
 /.vs/ProjectEvaluation/fleetmanagement.projects.v9.bin
 /.vs/ProjectEvaluation/fleetmanagement.strings.v9.bin
 /.gitignore
+
+.vs/
