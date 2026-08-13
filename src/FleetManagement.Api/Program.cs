@@ -1,23 +1,29 @@
+using FleetManagement.Application.DTOs;
+using FleetManagement.Application.Services;
+using FleetManagement.Application.Validators;
+using FluentValidation;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services.AddScoped<IValidator<VehicleDto>, VehicleValidator>();
+builder.Services.AddScoped<IValidator<DriverDto>, DriverValidator>();
+builder.Services.AddScoped<IValidator<TripDto>, TripValidator>();
+
+builder.Services.AddScoped<VehicleService>();
+builder.Services.AddScoped<DriverService>();
+builder.Services.AddScoped<TripService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
