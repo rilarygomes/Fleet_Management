@@ -7,7 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
   </ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\FleetManagement.Application\FleetManagement.Application.csproj" />
+		<ProjectReference Include="..\FleetManagement.Domain\FleetManagement.Domain.csproj" />
+	</ItemGroup>
 
 </Project>
