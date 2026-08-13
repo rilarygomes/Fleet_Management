@@ -28,5 +28,7 @@
             StartDate = startDate;
             EndDate = endDate;
         }
+
+        public Trip() { }
     }
 }

@@ -32,5 +32,7 @@
             Model = model;
             Year = year;
         }
+
+        public Vehicle() { }
     }
 }

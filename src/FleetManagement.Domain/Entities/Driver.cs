@@ -32,5 +32,7 @@
             LicenseNumber = licenseNumber;
             LicenseExpirationDate = licenseExpirationDate;
         }
+
+        public Driver() { }
     }
 }
