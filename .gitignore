@@ -55,6 +55,7 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+/.vs
 /.vs/FleetManagement/FileContentIndex/df6b02e4-bda5-4cae-a19c-abc69e5b4b7e.vsidx
 /.gitignore
 /.gitignore
@@ -72,5 +73,3 @@ nunit-*.xml
 /.vs/ProjectEvaluation/fleetmanagement.projects.v9.bin
 /.vs/ProjectEvaluation/fleetmanagement.strings.v9.bin
 /.gitignore
-
-.vs/
