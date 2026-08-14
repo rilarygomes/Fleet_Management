@@ -30,5 +30,13 @@
         }
 
         public Trip() { }
+
+        public void Update(Guid vehicleId, Guid driverId, DateTime startDate, DateTime endDate)
+        {
+            VehicleId = vehicleId;
+            DriverId = driverId;
+            StartDate = startDate;
+            EndDate = endDate;
+        }
     }
 }

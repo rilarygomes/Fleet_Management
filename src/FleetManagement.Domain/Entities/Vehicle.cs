@@ -34,5 +34,12 @@
         }
 
         public Vehicle() { }
+
+        public void Update(string licensePlate, string model, int year)
+        {
+            LicensePlate = licensePlate;
+            Model = model;
+            Year = year;
+        }
     }
 }
