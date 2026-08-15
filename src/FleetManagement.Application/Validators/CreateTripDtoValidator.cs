@@ -3,15 +3,10 @@ using FleetManagement.Application.DTOs;
 
 namespace FleetManagement.Application.Validators
 {
-    public class TripValidator : AbstractValidator<TripDto>
+    public class CreateTripDtoValidator : AbstractValidator<CreateTripDto>
     {
-        public TripValidator()
+        public CreateTripDtoValidator()
         {
-            RuleFor(t => t.Id)
-                .NotEmpty().WithMessage("Id is required.")
-                .Must(id => Guid.TryParse(id.ToString(), out _))
-                .WithMessage("Id value didn’t follow the GUID model expected.");
-
             RuleFor(t => t.VehicleId)
                 .NotEmpty().WithMessage("VehicleId is required.")
                 .Must(id => Guid.TryParse(id.ToString(), out _))

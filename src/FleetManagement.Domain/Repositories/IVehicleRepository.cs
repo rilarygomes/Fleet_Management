@@ -4,11 +4,13 @@
 
     public interface IVehicleRepository
     {
+        IEnumerable<Vehicle> GetAll();
         Vehicle? GetById(Guid id);
         Vehicle? GetByLicensePlate(string licensePlate);
-        IEnumerable<Vehicle> GetAll();
+        bool HasTrips(Guid vehicleId); 
         void Add(Vehicle vehicle);
         void Update(Vehicle vehicle);
         void Remove(Guid id);
+        void SaveChanges();
     }
 }

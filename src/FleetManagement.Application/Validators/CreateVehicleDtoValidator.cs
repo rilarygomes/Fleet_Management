@@ -3,15 +3,10 @@ using FleetManagement.Application.DTOs;
 
 namespace FleetManagement.Application.Validators
 {
-    public class VehicleValidator : AbstractValidator<VehicleDto>
+    public class CreateVehicleDtoValidator : AbstractValidator<CreateVehicleDto>
     {
-        public VehicleValidator()
+        public CreateVehicleDtoValidator()
         {
-            RuleFor(v => v.Id)
-                .NotEmpty().WithMessage("Id is required.")
-                .Must(id => Guid.TryParse(id.ToString(), out _))
-                .WithMessage("Id value didn’t follow the GUID model expected.");
-
             RuleFor(v => v.LicensePlate)
                 .NotEmpty().WithMessage("License plate is required.")
                 .Length(7).WithMessage("License plate must be exactly 7 characters.");

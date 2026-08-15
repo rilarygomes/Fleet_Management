@@ -7,6 +7,7 @@ using FleetManagement.Domain.Repositories;
 using FleetManagement.Infrastructure.Persistence;
 using FleetManagement.Infrastructure.Persistence.Repositories;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Filters;
 using System.Reflection;
@@ -24,10 +25,34 @@ builder.Services.AddSwaggerGen(c =>
     if (File.Exists(xmlPath))
         c.IncludeXmlComments(xmlPath);
 
-    c.ExampleFilters(); 
+    c.ExampleFilters();
 });
 
-// registra os exemplos
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(e => e.Value != null && e.Value.Errors.Count > 0)
+            .Select(e => new
+            {
+                Field = e.Key,
+                Messages = e.Value!.Errors
+                    .Where(err => !string.IsNullOrEmpty(err.ErrorMessage))
+                    .Select(err => err.ErrorMessage)
+                    .ToArray()
+            });
+
+        return new BadRequestObjectResult(new
+        {
+            Title = "Validation failed",
+            Status = 400,
+            Errors = errors
+        });
+    };
+});
+
+
 builder.Services.AddSwaggerExamplesFromAssemblyOf<DriverDto>();
 
 // DbContext
@@ -46,6 +71,10 @@ builder.Services.AddScoped<IValidator<TripDto>, TripValidator>();
 builder.Services.AddScoped<IValidator<UpdateDriverDto>, UpdateDriverValidator>();
 builder.Services.AddScoped<IValidator<UpdateVehicleDto>, UpdateVehicleValidator>();
 builder.Services.AddScoped<IValidator<UpdateTripDto>, UpdateTripValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateDriverDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateTripDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateVehicleDtoValidator>();
+
 
 // Services
 builder.Services.AddScoped<VehicleService>();
@@ -60,7 +89,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "FleetManagement API V1");
-        c.RoutePrefix = string.Empty; 
+        c.RoutePrefix = string.Empty;
     });
 }
 
