@@ -1,15 +1,7 @@
 ﻿namespace FleetManagement.Application.DTOs
 {
-    /// <summary>
-    /// Represents a driver in the fleet.
-    /// </summary>
-    public class DriverDto
+    public class CreateDriverDto
     {
-        /// <summary>
-        /// Unique identifier of the driver.
-        /// </summary>
-        public Guid Id { get; set; }
-
         /// <summary>
         /// Full name of the driver (minimum 3 characters).
         /// </summary>

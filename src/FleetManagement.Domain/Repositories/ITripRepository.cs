@@ -11,5 +11,6 @@
         void Add(Trip trip);
         void Update(Trip trip);
         void Remove(Guid id);
+        void SaveChanges();
     }
 }

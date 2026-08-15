@@ -1,15 +1,7 @@
 ﻿namespace FleetManagement.Application.DTOs
 {
-    /// <summary>
-    /// Represents a trip assigned to a vehicle and driver.
-    /// </summary>
-    public class TripDto
+    public class CreateTripDto
     {
-        /// <summary>
-        /// Unique identifier of the trip.
-        /// </summary>
-        public Guid Id { get; set; }
-
         /// <summary>
         /// Unique identifier of the vehicle assigned to the trip.
         /// </summary>

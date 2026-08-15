@@ -1,15 +1,7 @@
 ﻿namespace FleetManagement.Application.DTOs
 {
-    /// <summary>
-    /// Represents a vehicle in the fleet.
-    /// </summary>
-    public class VehicleDto
+    public class CreateVehicleDto
     {
-        /// <summary>
-        /// Unique identifier of the vehicle.
-        /// </summary>
-        public Guid Id { get; set; }
-
         /// <summary>
         /// License plate of the vehicle (must be 7 characters).
         /// </summary>

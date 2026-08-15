@@ -33,5 +33,11 @@ namespace FleetManagement.Infrastructure.Persistence.Repositories
             if (driver != null)
                 _context.Drivers.Remove(driver);
         }
+
+        public bool HasTrips(Guid driverId) =>
+            _context.Trips.Any(t => t.DriverId == driverId);
+
+        public void SaveChanges() => _context.SaveChanges();
+
     }
 }

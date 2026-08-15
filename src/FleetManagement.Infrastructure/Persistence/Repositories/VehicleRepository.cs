@@ -20,6 +20,10 @@ namespace FleetManagement.Infrastructure.Persistence.Repositories
 
         public IEnumerable<Vehicle> GetAll() =>
             _context.Vehicles.ToList();
+        public bool HasTrips(Guid vehicleId)
+        {
+            return _context.Trips.Any(t => t.VehicleId == vehicleId);
+        }
 
         public void Add(Vehicle vehicle) =>
             _context.Vehicles.Add(vehicle);
@@ -33,5 +37,6 @@ namespace FleetManagement.Infrastructure.Persistence.Repositories
             if (vehicle != null)
                 _context.Vehicles.Remove(vehicle);
         }
+        public void SaveChanges() => _context.SaveChanges();
     }
 }

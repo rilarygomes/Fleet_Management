@@ -36,5 +36,6 @@ namespace FleetManagement.Infrastructure.Persistence.Repositories
             if (trip != null)
                 _context.Trips.Remove(trip);
         }
+        public void SaveChanges() => _context.SaveChanges();
     }
 }

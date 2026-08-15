@@ -34,5 +34,12 @@
         }
 
         public Driver() { }
+
+        public void Update(string name, string licenseNumber, DateTime expirationDate)
+        {
+            Name = name;
+            LicenseNumber = licenseNumber;
+            LicenseExpirationDate = expirationDate;
+        }
     }
 }
