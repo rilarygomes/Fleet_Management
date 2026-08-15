@@ -1,124 +1,134 @@
-﻿using FleetManagement.Application.DTOs;
-using FleetManagement.Application.Services;
-using FluentValidation;
+﻿using FleetManagement.Api.Swagger;
+using FleetManagement.Application.Vehicles.Commands.CreateVehicle;
+using FleetManagement.Application.Vehicles.Commands.DeleteVehicle;
+using FleetManagement.Application.Vehicles.Commands.UpdateVehicle;
+using FleetManagement.Application.Vehicles.DTOs;
+using FleetManagement.Application.Vehicles.GetVehicle;
+using FleetManagement.Application.Vehicles.GetVehicles;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+using Swashbuckle.AspNetCore.Filters;
+
+namespace FleetManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class VehicleController : ControllerBase
 {
-    private readonly VehicleService _vehicleService;
-    private readonly IValidator<CreateVehicleDto> _createVehicleValidator;
-    private readonly IValidator<UpdateVehicleDto> _updateVehicleValidator;
-    private readonly ILogger<VehicleController> _logger;
+    private readonly CreateVehicleCommandHandler _createVehicleHandler;
+    private readonly UpdateVehicleCommandHandler _updateVehicleHandler;
+    private readonly DeleteVehicleCommandHandler _deleteVehicleHandler;
+    private readonly GetVehicleQueryHandler _getVehicleHandler;
+    private readonly GetVehiclesQueryHandler _getVehiclesHandler;
 
     public VehicleController(
-        VehicleService vehicleService,
-        IValidator<CreateVehicleDto> createVehicleValidator,
-        IValidator<UpdateVehicleDto> updateVehicleValidator,
-        ILogger<VehicleController> logger)
+        CreateVehicleCommandHandler createVehicleHandler,
+        UpdateVehicleCommandHandler updateVehicleHandler,
+        DeleteVehicleCommandHandler deleteVehicleHandler,
+        GetVehicleQueryHandler getVehicleHandler,
+        GetVehiclesQueryHandler getVehiclesHandler)
     {
-        _vehicleService = vehicleService;
-        _createVehicleValidator = createVehicleValidator;
-        _updateVehicleValidator = updateVehicleValidator;
-        _logger = logger;
+        _createVehicleHandler = createVehicleHandler;
+        _updateVehicleHandler = updateVehicleHandler;
+        _deleteVehicleHandler = deleteVehicleHandler;
+        _getVehicleHandler = getVehicleHandler;
+        _getVehiclesHandler = getVehiclesHandler;
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<VehicleDto>), StatusCodes.Status200OK)]
     public IActionResult GetAll([FromQuery] string? licensePlate)
     {
-        _logger.LogInformation("Fetching all vehicles with filter licensePlate={LicensePlate}", licensePlate);
-        var vehicles = _vehicleService.GetAll();
+        var query = new GetVehiclesQuery
+        {
+            LicensePlate = licensePlate
+        };
 
-        if (!string.IsNullOrEmpty(licensePlate))
-            vehicles = vehicles.Where(v =>
-                v.LicensePlate.Contains(licensePlate, StringComparison.OrdinalIgnoreCase));
+        var result = _getVehiclesHandler.Handle(query);
 
-        return Ok(vehicles);
+        return Ok(result);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(VehicleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerResponseExample(
+        StatusCodes.Status200OK,
+        typeof(VehicleDtoExample))]
     public IActionResult GetById(Guid id)
     {
-        _logger.LogInformation("Fetching vehicle by Id {VehicleId}", id);
-        var v = _vehicleService.GetById(id);
-        if (v == null)
+        var query = new GetVehicleQuery
         {
-            _logger.LogWarning("Vehicle {VehicleId} not found", id);
-            return NotFound();
-        }
+            Id = id
+        };
 
-        return Ok(v);
+        var result = _getVehicleHandler.Handle(query);
+
+        if (result == null)
+            return NotFound();
+
+        return Ok(result);
     }
 
     [HttpPost]
-    public IActionResult Create([FromBody] CreateVehicleDto dto)
+    [ProducesResponseType(typeof(VehicleDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerRequestExample(
+        typeof(CreateVehicleCommand),
+        typeof(CreateVehicleCommandExample))]
+    [SwaggerResponseExample(
+        StatusCodes.Status201Created,
+        typeof(VehicleDtoExample))]
+    public IActionResult Create([FromBody] CreateVehicleCommand command)
     {
-        _logger.LogInformation("Creating new vehicle with LicensePlate {LicensePlate}", dto.LicensePlate);
-        var validation = _createVehicleValidator.Validate(dto);
-        if (!validation.IsValid)
-        {
-            _logger.LogWarning("Vehicle creation validation failed: {Errors}", validation.Errors);
-            return BadRequest(new { Errors = validation.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) });
-        }
-
-        var result = _vehicleService.Add(dto);
+        var result = _createVehicleHandler.Handle(command);
 
         if (!result.IsSuccess)
-        {
-            _logger.LogError("Vehicle creation failed: {Error}", result.Error);
             return BadRequest(new { Message = result.Error });
-        }
 
-        _logger.LogInformation("Vehicle {VehicleId} created successfully", result.Value.Id);
-        return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, new
-        {
-            Message = "Vehicle created successfully.",
-            Data = result.Value
-        });
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = result.Value.Id },
+            result.Value);
     }
 
-    [HttpPut("{id}")]
-    public IActionResult Update(Guid id, [FromBody] UpdateVehicleDto dto)
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(VehicleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerRequestExample(
+        typeof(UpdateVehicleCommand),
+        typeof(UpdateVehicleCommandExample))]
+    [SwaggerResponseExample(
+        StatusCodes.Status200OK,
+        typeof(VehicleDtoExample))]
+    public IActionResult Update(
+        Guid id,
+        [FromBody] UpdateVehicleCommand command)
     {
-        _logger.LogInformation("Updating vehicle {VehicleId}", id);
-        var validation = _updateVehicleValidator.Validate(dto);
-        if (!validation.IsValid)
-        {
-            _logger.LogWarning("Vehicle update validation failed for {VehicleId}", id);
-            return BadRequest(new { Errors = validation.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) });
-        }
+        command.Id = id;
 
-        var result = _vehicleService.Update(id, dto);
+        var result = _updateVehicleHandler.Handle(command);
 
         if (!result.IsSuccess)
-        {
-            _logger.LogError("Vehicle update failed for {VehicleId}: {Error}", id, result.Error);
             return BadRequest(new { Message = result.Error });
-        }
 
-        _logger.LogInformation("Vehicle {VehicleId} updated successfully", id);
-        return Ok(new
-        {
-            Message = "Vehicle updated successfully.",
-            Data = result.Value
-        });
+        return Ok(result.Value);
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult Delete(Guid id)
     {
-        _logger.LogInformation("Deleting vehicle {VehicleId}", id);
-        var result = _vehicleService.Remove(id);
+        var command = new DeleteVehicleCommand
+        {
+            Id = id
+        };
+
+        var result = _deleteVehicleHandler.Handle(command);
 
         if (!result.IsSuccess)
-        {
-            _logger.LogError("Vehicle deletion failed for {VehicleId}: {Error}", id, result.Error);
             return BadRequest(new { Message = result.Error });
-        }
 
-        _logger.LogInformation("Vehicle {VehicleId} deleted successfully", id);
-        return Ok(new { Message = "Vehicle deleted successfully." });
+        return NoContent();
     }
 }

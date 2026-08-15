@@ -1,138 +1,141 @@
-﻿using FleetManagement.Application.DTOs;
-using FleetManagement.Application.Services;
-using FluentValidation;
+﻿using FleetManagement.Api.Swagger;
+using FleetManagement.Application.Trips.Commands.CreateTrip;
+using FleetManagement.Application.Trips.Commands.DeleteTrip;
+using FleetManagement.Application.Trips.Commands.UpdateTrip;
+using FleetManagement.Application.Trips.DTOs;
+using FleetManagement.Application.Trips.GetTrip;
+using FleetManagement.Application.Trips.GetTrips;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
+using Swashbuckle.AspNetCore.Filters;
+
+namespace FleetManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class TripController : ControllerBase
 {
-    private readonly TripService _tripService;
-    private readonly IValidator<CreateTripDto> _createTripValidator;
-    private readonly IValidator<UpdateTripDto> _updateTripValidator;
-    private readonly ILogger<TripController> _logger;
+    private readonly CreateTripCommandHandler _createTripHandler;
+    private readonly UpdateTripCommandHandler _updateTripHandler;
+    private readonly DeleteTripCommandHandler _deleteTripHandler;
+    private readonly GetTripQueryHandler _getTripHandler;
+    private readonly GetTripsQueryHandler _getTripsHandler;
 
     public TripController(
-        TripService tripService,
-        IValidator<CreateTripDto> createTripValidator,
-        IValidator<UpdateTripDto> updateTripValidator,
-        ILogger<TripController> logger)
+        CreateTripCommandHandler createTripHandler,
+        UpdateTripCommandHandler updateTripHandler,
+        DeleteTripCommandHandler deleteTripHandler,
+        GetTripQueryHandler getTripHandler,
+        GetTripsQueryHandler getTripsHandler)
     {
-        _tripService = tripService;
-        _createTripValidator = createTripValidator;
-        _updateTripValidator = updateTripValidator;
-        _logger = logger;
+        _createTripHandler = createTripHandler;
+        _updateTripHandler = updateTripHandler;
+        _deleteTripHandler = deleteTripHandler;
+        _getTripHandler = getTripHandler;
+        _getTripsHandler = getTripsHandler;
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<TripDto>), StatusCodes.Status200OK)]
     public IActionResult GetAll(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
         [FromQuery] Guid? driverId,
         [FromQuery] Guid? vehicleId)
     {
-        _logger.LogInformation("Fetching all trips with filters: startDate={StartDate}, endDate={EndDate}, driverId={DriverId}, vehicleId={VehicleId}",
-            startDate, endDate, driverId, vehicleId);
+        var query = new GetTripsQuery
+        {
+            StartDate = startDate,
+            EndDate = endDate,
+            DriverId = driverId,
+            VehicleId = vehicleId
+        };
 
-        var trips = _tripService.GetAll();
+        var result = _getTripsHandler.Handle(query);
 
-        if (startDate.HasValue)
-            trips = trips.Where(t => t.StartDate >= startDate.Value);
-
-        if (endDate.HasValue)
-            trips = trips.Where(t => t.EndDate <= endDate.Value);
-
-        if (driverId.HasValue)
-            trips = trips.Where(t => t.DriverId == driverId.Value);
-
-        if (vehicleId.HasValue)
-            trips = trips.Where(t => t.VehicleId == vehicleId.Value);
-
-        return Ok(trips);
+        return Ok(result);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(TripDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [SwaggerResponseExample(
+        StatusCodes.Status200OK,
+        typeof(TripDtoExample))]
     public IActionResult GetById(Guid id)
     {
-        _logger.LogInformation("Fetching trip by Id {TripId}", id);
-        var t = _tripService.GetById(id);
-        if (t == null)
+        var query = new GetTripQuery
         {
-            _logger.LogWarning("Trip {TripId} not found", id);
-            return NotFound();
-        }
+            Id = id
+        };
 
-        return Ok(t);
+        var result = _getTripHandler.Handle(query);
+
+        if (result == null)
+            return NotFound();
+
+        return Ok(result);
     }
 
     [HttpPost]
-    public IActionResult Create([FromBody] CreateTripDto dto)
+    [ProducesResponseType(typeof(TripDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerRequestExample(
+        typeof(CreateTripCommand),
+        typeof(CreateTripCommandExample))]
+    [SwaggerResponseExample(
+        StatusCodes.Status201Created,
+        typeof(TripDtoExample))]
+    public IActionResult Create([FromBody] CreateTripCommand command)
     {
-        _logger.LogInformation("Creating new trip with Vehicle {VehicleId} and Driver {DriverId}", dto.VehicleId, dto.DriverId);
-        var validation = _createTripValidator.Validate(dto);
-        if (!validation.IsValid)
-        {
-            _logger.LogWarning("Trip creation validation failed: {Errors}", validation.Errors);
-            return BadRequest(new { Errors = validation.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) });
-        }
-
-        var result = _tripService.Add(dto);
+        var result = _createTripHandler.Handle(command);
 
         if (!result.IsSuccess)
-        {
-            _logger.LogError("Trip creation failed: {Error}", result.Error);
             return BadRequest(new { Message = result.Error });
-        }
 
-        _logger.LogInformation("Trip {TripId} created successfully", result.Value.Id);
-        return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, new
-        {
-            Message = "Trip created successfully.",
-            Data = result.Value
-        });
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = result.Value.Id },
+            result.Value);
     }
 
-    [HttpPut("{id}")]
-    public IActionResult Update(Guid id, [FromBody] UpdateTripDto dto)
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(TripDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [SwaggerRequestExample(
+        typeof(UpdateTripCommand),
+        typeof(UpdateTripCommandExample))]
+    [SwaggerResponseExample(
+        StatusCodes.Status200OK,
+        typeof(TripDtoExample))]
+    public IActionResult Update(
+        Guid id,
+        [FromBody] UpdateTripCommand command)
     {
-        _logger.LogInformation("Updating trip {TripId}", id);
-        var validation = _updateTripValidator.Validate(dto);
-        if (!validation.IsValid)
-        {
-            _logger.LogWarning("Trip update validation failed for {TripId}", id);
-            return BadRequest(new { Errors = validation.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) });
-        }
+        command.Id = id;
 
-        var result = _tripService.Update(id, dto);
+        var result = _updateTripHandler.Handle(command);
 
         if (!result.IsSuccess)
-        {
-            _logger.LogError("Trip update failed for {TripId}: {Error}", id, result.Error);
             return BadRequest(new { Message = result.Error });
-        }
 
-        _logger.LogInformation("Trip {TripId} updated successfully", id);
-        return Ok(new
-        {
-            Message = "Trip updated successfully.",
-            Data = result.Value
-        });
+        return Ok(result.Value);
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult Delete(Guid id)
     {
-        _logger.LogInformation("Deleting trip {TripId}", id);
-        var result = _tripService.Remove(id);
+        var command = new DeleteTripCommand
+        {
+            Id = id
+        };
+
+        var result = _deleteTripHandler.Handle(command);
 
         if (!result.IsSuccess)
-        {
-            _logger.LogError("Trip deletion failed for {TripId}: {Error}", id, result.Error);
             return BadRequest(new { Message = result.Error });
-        }
 
-        _logger.LogInformation("Trip {TripId} deleted successfully", id);
-        return Ok(new { Message = "Trip deleted successfully." });
+        return NoContent();
     }
 }
