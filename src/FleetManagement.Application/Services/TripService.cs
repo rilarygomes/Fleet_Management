@@ -3,6 +3,7 @@ using FleetManagement.Application.Shared;
 using FleetManagement.Domain.Entities;
 using FleetManagement.Domain.Repositories;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace FleetManagement.Application.Services
 {
@@ -13,23 +14,27 @@ namespace FleetManagement.Application.Services
         private readonly IDriverRepository _driverRepository;
         private readonly IValidator<CreateTripDto> _createValidator;
         private readonly IValidator<UpdateTripDto> _updateValidator;
+        private readonly ILogger<TripService> _logger;
 
         public TripService(
             ITripRepository tripRepository,
             IVehicleRepository vehicleRepository,
             IDriverRepository driverRepository,
             IValidator<CreateTripDto> createValidator,
-            IValidator<UpdateTripDto> updateValidator)
+            IValidator<UpdateTripDto> updateValidator,
+            ILogger<TripService> logger)
         {
             _tripRepository = tripRepository;
             _vehicleRepository = vehicleRepository;
             _driverRepository = driverRepository;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
+            _logger = logger;
         }
 
         public IEnumerable<TripDto> GetAll()
         {
+            _logger.LogInformation("Fetching all trips");
             return _tripRepository.GetAll()
                 .Select(t => new TripDto
                 {
@@ -43,8 +48,15 @@ namespace FleetManagement.Application.Services
 
         public TripDto? GetById(Guid id)
         {
+            _logger.LogInformation("Fetching trip by Id {TripId}", id);
             var trip = _tripRepository.GetById(id);
-            return trip == null ? null : new TripDto
+            if (trip == null)
+            {
+                _logger.LogWarning("Trip {TripId} not found", id);
+                return null;
+            }
+
+            return new TripDto
             {
                 Id = trip.Id,
                 VehicleId = trip.VehicleId,
@@ -56,15 +68,21 @@ namespace FleetManagement.Application.Services
 
         public Result<TripDto> Add(CreateTripDto dto)
         {
+            _logger.LogInformation("Adding new trip with Vehicle {VehicleId} and Driver {DriverId}", dto.VehicleId, dto.DriverId);
             _createValidator.ValidateAndThrow(dto);
 
             var validationResult = ValidateTrip(dto.VehicleId, dto.DriverId, dto.StartDate, dto.EndDate);
             if (!validationResult.IsSuccess)
+            {
+                _logger.LogWarning("Trip validation failed: {Error}", validationResult.Error);
                 return Result<TripDto>.Fail(validationResult.Error);
+            }
 
             var trip = new Trip(Guid.NewGuid(), dto.VehicleId, dto.DriverId, dto.StartDate, dto.EndDate);
             _tripRepository.Add(trip);
             _tripRepository.SaveChanges();
+
+            _logger.LogInformation("Trip {TripId} created successfully", trip.Id);
 
             return Result<TripDto>.Ok(new TripDto
             {
@@ -78,39 +96,49 @@ namespace FleetManagement.Application.Services
 
         public Result<TripDto> Update(Guid id, UpdateTripDto dto)
         {
-            // Validate incoming DTO
+            _logger.LogInformation("Updating trip {TripId}", id);
             _updateValidator.ValidateAndThrow(dto);
 
-            // Fetch existing trip
             var existing = _tripRepository.GetById(id);
             if (existing == null)
+            {
+                _logger.LogWarning("Trip {TripId} not found for update", id);
                 return Result<TripDto>.Fail("Trip not found.");
+            }
 
-            // Business rule: if trip already started, block any update
             if (existing.StartDate <= DateTime.UtcNow)
+            {
+                _logger.LogError("Trip {TripId} already started, update blocked", id);
                 return Result<TripDto>.Fail("Trip has already started and cannot be updated.");
+            }
 
-            // Ensure Vehicle exists
             var vehicle = _vehicleRepository.GetById(dto.VehicleId);
             if (vehicle == null)
+            {
+                _logger.LogWarning("Vehicle {VehicleId} not found for trip {TripId}", dto.VehicleId, id);
                 return Result<TripDto>.Fail("Vehicle not found.");
+            }
 
-            // Ensure Driver exists
             var driver = _driverRepository.GetById(dto.DriverId);
             if (driver == null)
+            {
+                _logger.LogWarning("Driver {DriverId} not found for trip {TripId}", dto.DriverId, id);
                 return Result<TripDto>.Fail("Driver not found.");
+            }
 
-            // Business rule: check conflicts (driver/vehicle overlap)
             var conflictCheck = ValidateTrip(dto.VehicleId, dto.DriverId, dto.StartDate, dto.EndDate, id);
             if (!conflictCheck.IsSuccess)
+            {
+                _logger.LogError("Trip {TripId} update conflict: {Error}", id, conflictCheck.Error);
                 return Result<TripDto>.Fail(conflictCheck.Error);
+            }
 
-            // Apply update
             existing.Update(dto.VehicleId, dto.DriverId, dto.StartDate, dto.EndDate);
             _tripRepository.Update(existing);
             _tripRepository.SaveChanges();
 
-            // Return updated DTO
+            _logger.LogInformation("Trip {TripId} updated successfully", id);
+
             return Result<TripDto>.Ok(new TripDto
             {
                 Id = existing.Id,
@@ -123,18 +151,26 @@ namespace FleetManagement.Application.Services
 
         public Result<bool> Remove(Guid id)
         {
+            _logger.LogInformation("Removing trip {TripId}", id);
             var trip = _tripRepository.GetById(id);
             if (trip == null)
+            {
+                _logger.LogWarning("Trip {TripId} not found for removal", id);
                 return Result<bool>.Fail("Trip not found.");
+            }
 
             _tripRepository.Remove(id);
             _tripRepository.SaveChanges();
+
+            _logger.LogInformation("Trip {TripId} removed successfully", id);
 
             return Result<bool>.Ok(true);
         }
 
         private Result<bool> ValidateTrip(Guid vehicleId, Guid driverId, DateTime startDate, DateTime endDate, Guid? ignoreTripId = null)
         {
+            _logger.LogInformation("Validating trip for Vehicle {VehicleId} and Driver {DriverId}", vehicleId, driverId);
+
             if (_vehicleRepository.GetById(vehicleId) == null)
                 return Result<bool>.Fail("Vehicle not found.");
 

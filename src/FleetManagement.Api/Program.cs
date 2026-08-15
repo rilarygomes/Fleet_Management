@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Filters;
 using System.Reflection;
+using Serilog;
+using Serilog.Events;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +30,17 @@ builder.Services.AddSwaggerGen(c =>
 
     c.ExampleFilters();
 });
+
+// Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information() 
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/api-log-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog(); 
+
 
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
