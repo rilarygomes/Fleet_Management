@@ -6,25 +6,46 @@ using Microsoft.Extensions.DependencyInjection;
 
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
+    private readonly string _databaseName = $"IntegrationTestDb-{Guid.NewGuid()}";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
 
         builder.ConfigureServices(services =>
         {
-            // Remove existing DbContext registrations
-            var descriptors = services
-                .Where(d => d.ServiceType == typeof(DbContextOptions<FleetManagementDbContext>))
-                .ToList();
-            foreach (var d in descriptors) services.Remove(d);
+            var dbContextOptionsDescriptor = services
+                .SingleOrDefault(d =>
+                    d.ServiceType == typeof(DbContextOptions<FleetManagementDbContext>));
+
+            if (dbContextOptionsDescriptor is not null)
+            {
+                services.Remove(dbContextOptionsDescriptor);
+            }
 
             var dbContextDescriptor = services
-                .SingleOrDefault(d => d.ServiceType == typeof(FleetManagementDbContext));
-            if (dbContextDescriptor != null) services.Remove(dbContextDescriptor);
+                .SingleOrDefault(d =>
+                    d.ServiceType == typeof(FleetManagementDbContext));
 
-            // Register InMemory DbContext
+            if (dbContextDescriptor is not null)
+            {
+                services.Remove(dbContextDescriptor);
+            }
+
             services.AddDbContext<FleetManagementDbContext>(options =>
-                options.UseInMemoryDatabase("IntegrationTestDb"));
+            {
+                options.UseInMemoryDatabase(_databaseName);
+            });
+
+            var serviceProvider = services.BuildServiceProvider();
+
+            using var scope = serviceProvider.CreateScope();
+
+            var db = scope.ServiceProvider
+                .GetRequiredService<FleetManagementDbContext>();
+
+            db.Database.EnsureDeleted();
+            db.Database.EnsureCreated();
         });
     }
 }
