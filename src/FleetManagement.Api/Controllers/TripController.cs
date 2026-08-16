@@ -1,4 +1,5 @@
-﻿using FleetManagement.Api.Swagger;
+﻿using FleetManagement.Api.Common;
+using FleetManagement.Api.Swagger;
 using FleetManagement.Application.Trips.Commands.CreateTrip;
 using FleetManagement.Application.Trips.Commands.DeleteTrip;
 using FleetManagement.Application.Trips.Commands.UpdateTrip;
@@ -35,7 +36,9 @@ public class TripController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<TripDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(IEnumerable<TripDto>),
+        StatusCodes.Status200OK)]
     public IActionResult GetAll(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
@@ -56,8 +59,11 @@ public class TripController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(TripDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(TripDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status404NotFound)]
     [SwaggerResponseExample(
         StatusCodes.Status200OK,
         typeof(TripDtoExample))]
@@ -70,60 +76,87 @@ public class TripController : ControllerBase
 
         var result = _getTripHandler.Handle(query);
 
-        if (result == null)
+        if (result is null)
             return NotFound();
 
         return Ok(result);
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(TripDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse<TripDto>),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     [SwaggerRequestExample(
         typeof(CreateTripCommand),
         typeof(CreateTripCommandExample))]
-    [SwaggerResponseExample(
-        StatusCodes.Status201Created,
-        typeof(TripDtoExample))]
-    public IActionResult Create([FromBody] CreateTripCommand command)
+    public IActionResult Create(
+        [FromBody] CreateTripCommand command)
     {
         var result = _createTripHandler.Handle(command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to create trip."
+            });
+        }
 
         return CreatedAtAction(
             nameof(GetById),
-            new { id = result.Value.Id },
-            result.Value);
+            new { id = result.Value!.Id },
+            new ApiResponse<TripDto>
+            {
+                Success = true,
+                Message = "Trip created successfully.",
+                Data = result.Value
+            });
     }
 
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(TripDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse<TripDto>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     [SwaggerRequestExample(
         typeof(UpdateTripCommand),
         typeof(UpdateTripCommandExample))]
-    [SwaggerResponseExample(
-        StatusCodes.Status200OK,
-        typeof(TripDtoExample))]
     public IActionResult Update(
         Guid id,
         [FromBody] UpdateTripCommand command)
     {
-        command.Id = id;
-
-        var result = _updateTripHandler.Handle(command);
+        var result = _updateTripHandler.Handle(id, command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to update trip."
+            });
+        }
 
-        return Ok(result.Value);
+        return Ok(new ApiResponse<TripDto>
+        {
+            Success = true,
+            Message = "Trip updated successfully.",
+            Data = result.Value
+        });
     }
 
     [HttpDelete("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     public IActionResult Delete(Guid id)
     {
         var command = new DeleteTripCommand
@@ -134,8 +167,18 @@ public class TripController : ControllerBase
         var result = _deleteTripHandler.Handle(command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to delete trip."
+            });
+        }
 
-        return NoContent();
+        return Ok(new ApiResponse
+        {
+            Success = true,
+            Message = "Trip deleted successfully."
+        });
     }
 }

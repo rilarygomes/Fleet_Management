@@ -1,4 +1,5 @@
-﻿using FleetManagement.Application.Drivers.Commands.CreateDriver;
+﻿using FleetManagement.Api.Common;
+using FleetManagement.Application.Drivers.Commands.CreateDriver;
 using FleetManagement.Application.Drivers.Commands.UpdateDriver;
 using FleetManagement.Application.Drivers.DTOs;
 using System.Net;
@@ -37,7 +38,9 @@ public class DriverControllerIntegrationTests
         var response = await _client.GetAsync(
             $"/api/driver/{Guid.NewGuid()}");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
     }
 
     [Fact]
@@ -54,18 +57,33 @@ public class DriverControllerIntegrationTests
             "/api/driver",
             command);
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode);
 
-        var driver =
-            await response.Content.ReadFromJsonAsync<DriverDto>();
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse<DriverDto>>();
 
-        Assert.NotNull(driver);
-        Assert.NotEqual(Guid.Empty, driver.Id);
-        Assert.Equal(command.Name, driver.Name);
-        Assert.Equal(command.LicenseNumber, driver.LicenseNumber);
+        Assert.NotNull(apiResponse);
+        Assert.True(apiResponse.Success);
+        Assert.Equal(
+            "Driver created successfully.",
+            apiResponse.Message);
+
+        Assert.NotNull(apiResponse.Data);
+        Assert.NotEqual(Guid.Empty, apiResponse.Data.Id);
+
+        Assert.Equal(
+            command.Name,
+            apiResponse.Data.Name);
+
+        Assert.Equal(
+            command.LicenseNumber,
+            apiResponse.Data.LicenseNumber);
+
         Assert.Equal(
             command.LicenseExpirationDate.Date,
-            driver.LicenseExpirationDate.Date);
+            apiResponse.Data.LicenseExpirationDate.Date);
     }
 
     [Fact]
@@ -85,6 +103,13 @@ public class DriverControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.False(string.IsNullOrWhiteSpace(apiResponse.Message));
     }
 
     [Fact]
@@ -104,6 +129,15 @@ public class DriverControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.Equal(
+            "Driver not found.",
+            apiResponse.Message);
     }
 
     [Fact]
@@ -115,5 +149,14 @@ public class DriverControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.Equal(
+            "Driver not found.",
+            apiResponse.Message);
     }
 }

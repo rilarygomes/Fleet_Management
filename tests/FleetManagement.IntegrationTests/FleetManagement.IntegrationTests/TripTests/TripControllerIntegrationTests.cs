@@ -1,4 +1,5 @@
-﻿using FleetManagement.Application.Drivers.Commands.CreateDriver;
+﻿using FleetManagement.Api.Common;
+using FleetManagement.Application.Drivers.Commands.CreateDriver;
 using FleetManagement.Application.Drivers.DTOs;
 using FleetManagement.Application.Trips.Commands.CreateTrip;
 using FleetManagement.Application.Trips.Commands.UpdateTrip;
@@ -7,7 +8,6 @@ using FleetManagement.Application.Vehicles.Commands.CreateVehicle;
 using FleetManagement.Application.Vehicles.DTOs;
 using System.Net;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace FleetManagement.IntegrationTests.Trips;
 
@@ -64,10 +64,14 @@ public class TripControllerIntegrationTests
             HttpStatusCode.Created,
             driverResponse.StatusCode);
 
-        var driver = await driverResponse.Content
-            .ReadFromJsonAsync<DriverDto>();
+        var driverApiResponse = await driverResponse.Content
+            .ReadFromJsonAsync<ApiResponse<DriverDto>>();
 
-        Assert.NotNull(driver);
+        Assert.NotNull(driverApiResponse);
+        Assert.True(driverApiResponse.Success);
+        Assert.NotNull(driverApiResponse.Data);
+
+        var driver = driverApiResponse.Data;
 
         var vehicleCommand = new CreateVehicleCommand
         {
@@ -84,10 +88,14 @@ public class TripControllerIntegrationTests
             HttpStatusCode.Created,
             vehicleResponse.StatusCode);
 
-        var vehicle = await vehicleResponse.Content
-            .ReadFromJsonAsync<VehicleDto>();
+        var vehicleApiResponse = await vehicleResponse.Content
+            .ReadFromJsonAsync<ApiResponse<VehicleDto>>();
 
-        Assert.NotNull(vehicle);
+        Assert.NotNull(vehicleApiResponse);
+        Assert.True(vehicleApiResponse.Success);
+        Assert.NotNull(vehicleApiResponse.Data);
+
+        var vehicle = vehicleApiResponse.Data;
 
         var startDate = DateTime.UtcNow.AddDays(2);
         var endDate = startDate.AddHours(2);
@@ -108,10 +116,19 @@ public class TripControllerIntegrationTests
             HttpStatusCode.Created,
             response.StatusCode);
 
-        var trip = await response.Content
-            .ReadFromJsonAsync<TripDto>();
+        var tripApiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse<TripDto>>();
 
-        Assert.NotNull(trip);
+        Assert.NotNull(tripApiResponse);
+        Assert.True(tripApiResponse.Success);
+        Assert.Equal(
+            "Trip created successfully.",
+            tripApiResponse.Message);
+
+        Assert.NotNull(tripApiResponse.Data);
+
+        var trip = tripApiResponse.Data;
+
         Assert.NotEqual(Guid.Empty, trip.Id);
         Assert.Equal(driver.Id, trip.DriverId);
         Assert.Equal(vehicle.Id, trip.VehicleId);
@@ -122,21 +139,34 @@ public class TripControllerIntegrationTests
     [Fact]
     public async Task Create_Should_Return_BadRequest_When_Trip_Is_Invalid()
     {
+        var now = DateTime.UtcNow;
+
         var command = new CreateTripCommand
         {
             DriverId = Guid.Empty,
             VehicleId = Guid.Empty,
-            StartDate = DateTime.UtcNow,
-            EndDate = DateTime.UtcNow.AddHours(-1)
+            StartDate = now,
+            EndDate = now.AddHours(-1)
         };
 
         var response = await _client.PostAsJsonAsync(
             "/api/trip",
             command);
 
+        var content = await response.Content.ReadAsStringAsync();
+
+        Console.WriteLine(content);
+
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.False(string.IsNullOrWhiteSpace(apiResponse.Message));
     }
 
     [Fact]
@@ -157,6 +187,15 @@ public class TripControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.Equal(
+            "Trip not found.",
+            apiResponse.Message);
     }
 
     [Fact]
@@ -168,5 +207,14 @@ public class TripControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.Equal(
+            "Trip not found.",
+            apiResponse.Message);
     }
 }

@@ -22,31 +22,46 @@ public class UpdateVehicleCommandHandler
         _logger = logger;
     }
 
-    public Result<VehicleDto> Handle(UpdateVehicleCommand command)
+    public Result<VehicleDto> Handle(Guid id, UpdateVehicleCommand command)
     {
         _logger.LogInformation(
             "Updating vehicle {VehicleId}",
-            command.Id);
+            id);
 
-        _validator.ValidateAndThrow(command);
+        var validationResult = _validator.Validate(command);
 
-        var vehicle = _vehicleRepository.GetById(command.Id);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(
+                "; ",
+                validationResult.Errors.Select(error => error.ErrorMessage));
 
-        if (vehicle == null)
+            _logger.LogWarning(
+                "Vehicle {VehicleId} validation failed: {ValidationErrors}",
+                id,
+                errors);
+
+            return Result<VehicleDto>.Fail(errors);
+        }
+
+        var vehicle = _vehicleRepository.GetById(id);
+
+        if (vehicle is null)
         {
             _logger.LogWarning(
-                "Vehicle {VehicleId} not found.",
-                command.Id);
+                "Vehicle {VehicleId} not found",
+                id);
 
             return Result<VehicleDto>.Fail("Vehicle not found.");
         }
 
-        var duplicate = _vehicleRepository.GetByLicensePlate(command.LicensePlate);
+        var duplicate = _vehicleRepository
+            .GetByLicensePlate(command.LicensePlate);
 
-        if (duplicate != null && duplicate.Id != command.Id)
+        if (duplicate is not null && duplicate.Id != id)
         {
             _logger.LogWarning(
-                "License plate {LicensePlate} already belongs to another vehicle.",
+                "License plate {LicensePlate} already belongs to another vehicle",
                 command.LicensePlate);
 
             return Result<VehicleDto>.Fail(
@@ -62,8 +77,8 @@ public class UpdateVehicleCommandHandler
         _vehicleRepository.SaveChanges();
 
         _logger.LogInformation(
-            "Vehicle {VehicleId} updated successfully.",
-            vehicle.Id);
+            "Vehicle {VehicleId} updated successfully",
+            id);
 
         return Result<VehicleDto>.Ok(new VehicleDto
         {

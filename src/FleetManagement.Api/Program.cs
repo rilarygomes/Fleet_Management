@@ -25,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Swashbuckle.AspNetCore.Filters;
 using System.Reflection;
+using FleetManagement.Api.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -212,6 +213,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
         db.SaveChanges();
     }
 }
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 

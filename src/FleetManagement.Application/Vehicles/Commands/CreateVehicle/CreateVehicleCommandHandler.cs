@@ -29,9 +29,23 @@ public class CreateVehicleCommandHandler
             "Creating vehicle with LicensePlate {LicensePlate}",
             command.LicensePlate);
 
-        _validator.ValidateAndThrow(command);
+        var validationResult = _validator.Validate(command);
 
-        var existing = _vehicleRepository.GetByLicensePlate(command.LicensePlate);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(
+                "; ",
+                validationResult.Errors.Select(error => error.ErrorMessage));
+
+            _logger.LogWarning(
+                "Vehicle creation validation failed: {ValidationErrors}",
+                errors);
+
+            return Result<VehicleDto>.Fail(errors);
+        }
+
+        var existing = _vehicleRepository
+            .GetByLicensePlate(command.LicensePlate);
 
         if (existing is not null)
         {

@@ -2,7 +2,6 @@
 
 public class UpdateTripCommand
 {
-    public Guid Id { get; set; }
 
     public Guid VehicleId { get; set; }
 

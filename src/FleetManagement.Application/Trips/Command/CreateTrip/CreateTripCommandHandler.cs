@@ -36,14 +36,27 @@ public class CreateTripCommandHandler
             command.VehicleId,
             command.DriverId);
 
-        _validator.ValidateAndThrow(command);
+        var validationResult = _validator.Validate(command);
+
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(
+                "; ",
+                validationResult.Errors.Select(error => error.ErrorMessage));
+
+            _logger.LogWarning(
+                "Trip creation validation failed: {ValidationErrors}",
+                errors);
+
+            return Result<TripDto>.Fail(errors);
+        }
 
         var vehicle = _vehicleRepository.GetById(command.VehicleId);
 
-        if (vehicle == null)
+        if (vehicle is null)
         {
             _logger.LogWarning(
-                "Vehicle {VehicleId} not found.",
+                "Vehicle {VehicleId} not found",
                 command.VehicleId);
 
             return Result<TripDto>.Fail("Vehicle not found.");
@@ -51,10 +64,10 @@ public class CreateTripCommandHandler
 
         var driver = _driverRepository.GetById(command.DriverId);
 
-        if (driver == null)
+        if (driver is null)
         {
             _logger.LogWarning(
-                "Driver {DriverId} not found.",
+                "Driver {DriverId} not found",
                 command.DriverId);
 
             return Result<TripDto>.Fail("Driver not found.");
@@ -66,10 +79,17 @@ public class CreateTripCommandHandler
                 t.StartDate < command.EndDate &&
                 command.StartDate < t.EndDate);
 
-        if (conflictingVehicleTrip != null)
+        if (conflictingVehicleTrip is not null)
         {
+            _logger.LogWarning(
+                "Vehicle {VehicleId} has a conflicting trip {TripId}",
+                command.VehicleId,
+                conflictingVehicleTrip.Id);
+
             return Result<TripDto>.Fail(
-                $"Vehicle is already assigned to another trip from {conflictingVehicleTrip.StartDate} to {conflictingVehicleTrip.EndDate}.");
+                $"Vehicle is already assigned to another trip from " +
+                $"{conflictingVehicleTrip.StartDate} to " +
+                $"{conflictingVehicleTrip.EndDate}.");
         }
 
         var conflictingDriverTrip = _tripRepository
@@ -78,10 +98,17 @@ public class CreateTripCommandHandler
                 t.StartDate < command.EndDate &&
                 command.StartDate < t.EndDate);
 
-        if (conflictingDriverTrip != null)
+        if (conflictingDriverTrip is not null)
         {
+            _logger.LogWarning(
+                "Driver {DriverId} has a conflicting trip {TripId}",
+                command.DriverId,
+                conflictingDriverTrip.Id);
+
             return Result<TripDto>.Fail(
-                $"Driver is already assigned to another trip from {conflictingDriverTrip.StartDate} to {conflictingDriverTrip.EndDate}.");
+                $"Driver is already assigned to another trip from " +
+                $"{conflictingDriverTrip.StartDate} to " +
+                $"{conflictingDriverTrip.EndDate}.");
         }
 
         var trip = new Trip(
@@ -95,7 +122,7 @@ public class CreateTripCommandHandler
         _tripRepository.SaveChanges();
 
         _logger.LogInformation(
-            "Trip {TripId} created successfully.",
+            "Trip {TripId} created successfully",
             trip.Id);
 
         return Result<TripDto>.Ok(new TripDto

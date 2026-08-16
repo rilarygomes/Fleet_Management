@@ -15,8 +15,8 @@ public class CreateDriverCommandValidator : AbstractValidator<CreateDriverComman
         RuleFor(d => d.LicenseNumber)
             .NotEmpty()
             .WithMessage("License number is required.")
-            .Length(11)
-            .WithMessage("License number must be exactly 11 characters.");
+            .Matches(@"^\d{11}$")
+            .WithMessage("License number must contain exactly 11 digits.");
 
         RuleFor(d => d.LicenseExpirationDate)
             .GreaterThan(DateTime.Today)

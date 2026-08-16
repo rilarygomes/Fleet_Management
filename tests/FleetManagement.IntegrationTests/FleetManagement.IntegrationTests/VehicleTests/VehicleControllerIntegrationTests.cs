@@ -1,9 +1,9 @@
-﻿using FleetManagement.Application.Vehicles.Commands.CreateVehicle;
+﻿using FleetManagement.Api.Common;
+using FleetManagement.Application.Vehicles.Commands.CreateVehicle;
 using FleetManagement.Application.Vehicles.Commands.UpdateVehicle;
 using FleetManagement.Application.Vehicles.DTOs;
 using System.Net;
 using System.Net.Http.Json;
-using Xunit;
 
 namespace FleetManagement.IntegrationTests.Vehicles;
 
@@ -60,10 +60,19 @@ public class VehicleControllerIntegrationTests
             HttpStatusCode.Created,
             response.StatusCode);
 
-        var vehicle = await response.Content
-            .ReadFromJsonAsync<VehicleDto>();
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse<VehicleDto>>();
 
-        Assert.NotNull(vehicle);
+        Assert.NotNull(apiResponse);
+        Assert.True(apiResponse.Success);
+        Assert.Equal(
+            "Vehicle created successfully.",
+            apiResponse.Message);
+
+        Assert.NotNull(apiResponse.Data);
+
+        var vehicle = apiResponse.Data;
+
         Assert.NotEqual(Guid.Empty, vehicle.Id);
         Assert.Equal(command.LicensePlate, vehicle.LicensePlate);
         Assert.Equal(command.Model, vehicle.Model);
@@ -87,6 +96,14 @@ public class VehicleControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.False(
+            string.IsNullOrWhiteSpace(apiResponse.Message));
     }
 
     [Fact]
@@ -107,10 +124,14 @@ public class VehicleControllerIntegrationTests
             HttpStatusCode.Created,
             createResponse.StatusCode);
 
-        var createdVehicle = await createResponse.Content
-            .ReadFromJsonAsync<VehicleDto>();
+        var createApiResponse = await createResponse.Content
+            .ReadFromJsonAsync<ApiResponse<VehicleDto>>();
 
-        Assert.NotNull(createdVehicle);
+        Assert.NotNull(createApiResponse);
+        Assert.True(createApiResponse.Success);
+        Assert.NotNull(createApiResponse.Data);
+
+        var createdVehicle = createApiResponse.Data;
 
         var updateCommand = new UpdateVehicleCommand
         {
@@ -127,13 +148,30 @@ public class VehicleControllerIntegrationTests
             HttpStatusCode.OK,
             updateResponse.StatusCode);
 
-        var updatedVehicle = await updateResponse.Content
-            .ReadFromJsonAsync<VehicleDto>();
+        var updateApiResponse = await updateResponse.Content
+            .ReadFromJsonAsync<ApiResponse<VehicleDto>>();
 
-        Assert.NotNull(updatedVehicle);
-        Assert.Equal(updateCommand.LicensePlate, updatedVehicle.LicensePlate);
-        Assert.Equal(updateCommand.Model, updatedVehicle.Model);
-        Assert.Equal(updateCommand.Year, updatedVehicle.Year);
+        Assert.NotNull(updateApiResponse);
+        Assert.True(updateApiResponse.Success);
+        Assert.Equal(
+            "Vehicle updated successfully.",
+            updateApiResponse.Message);
+
+        Assert.NotNull(updateApiResponse.Data);
+
+        var updatedVehicle = updateApiResponse.Data;
+
+        Assert.Equal(
+            updateCommand.LicensePlate,
+            updatedVehicle.LicensePlate);
+
+        Assert.Equal(
+            updateCommand.Model,
+            updatedVehicle.Model);
+
+        Assert.Equal(
+            updateCommand.Year,
+            updatedVehicle.Year);
     }
 
     [Fact]
@@ -153,10 +191,19 @@ public class VehicleControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.Equal(
+            "Vehicle not found.",
+            apiResponse.Message);
     }
 
     [Fact]
-    public async Task Delete_Should_Return_NoContent_When_Vehicle_Exists()
+    public async Task Delete_Should_Return_OK_When_Vehicle_Exists()
     {
         var createCommand = new CreateVehicleCommand
         {
@@ -173,17 +220,30 @@ public class VehicleControllerIntegrationTests
             HttpStatusCode.Created,
             createResponse.StatusCode);
 
-        var createdVehicle = await createResponse.Content
-            .ReadFromJsonAsync<VehicleDto>();
+        var createApiResponse = await createResponse.Content
+            .ReadFromJsonAsync<ApiResponse<VehicleDto>>();
 
-        Assert.NotNull(createdVehicle);
+        Assert.NotNull(createApiResponse);
+        Assert.True(createApiResponse.Success);
+        Assert.NotNull(createApiResponse.Data);
+
+        var createdVehicle = createApiResponse.Data;
 
         var deleteResponse = await _client.DeleteAsync(
             $"/api/vehicle/{createdVehicle.Id}");
 
         Assert.Equal(
-            HttpStatusCode.NoContent,
+            HttpStatusCode.OK,
             deleteResponse.StatusCode);
+
+        var deleteApiResponse = await deleteResponse.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(deleteApiResponse);
+        Assert.True(deleteApiResponse.Success);
+        Assert.Equal(
+            "Vehicle deleted successfully.",
+            deleteApiResponse.Message);
     }
 
     [Fact]
@@ -195,5 +255,14 @@ public class VehicleControllerIntegrationTests
         Assert.Equal(
             HttpStatusCode.BadRequest,
             response.StatusCode);
+
+        var apiResponse = await response.Content
+            .ReadFromJsonAsync<ApiResponse>();
+
+        Assert.NotNull(apiResponse);
+        Assert.False(apiResponse.Success);
+        Assert.Equal(
+            "Vehicle not found.",
+            apiResponse.Message);
     }
 }

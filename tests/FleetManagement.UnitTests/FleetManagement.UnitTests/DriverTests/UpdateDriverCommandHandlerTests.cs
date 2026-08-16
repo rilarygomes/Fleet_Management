@@ -28,23 +28,22 @@ public class UpdateDriverCommandHandlerTests
     [Fact]
     public void Handle_Should_Fail_When_Driver_Not_Found()
     {
+        var driverId = Guid.NewGuid();
+
         var command = new UpdateDriverCommand
         {
-            Id = Guid.NewGuid(),
             Name = "Carlos",
             LicenseNumber = "12345678901",
             LicenseExpirationDate = DateTime.UtcNow.AddYears(1)
         };
 
-        _validatorMock
-            .Setup(v => v.Validate(It.IsAny<ValidationContext<UpdateDriverCommand>>()))
-            .Returns(new FluentValidation.Results.ValidationResult());
+        SetupValidValidation();
 
         _driverRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(driverId))
             .Returns((Driver?)null);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(driverId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("Driver not found.", result.Error);
@@ -69,25 +68,22 @@ public class UpdateDriverCommandHandlerTests
 
         var command = new UpdateDriverCommand
         {
-            Id = driverId,
             Name = "Carlos Updated",
             LicenseNumber = duplicate.LicenseNumber,
             LicenseExpirationDate = DateTime.UtcNow.AddYears(2)
         };
 
-        _validatorMock
-            .Setup(v => v.Validate(It.IsAny<ValidationContext<UpdateDriverCommand>>()))
-            .Returns(new FluentValidation.Results.ValidationResult());
+        SetupValidValidation();
 
         _driverRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(driverId))
             .Returns(existing);
 
         _driverRepositoryMock
             .Setup(r => r.GetByLicenseNumber(command.LicenseNumber))
             .Returns(duplicate);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(driverId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(
@@ -106,15 +102,12 @@ public class UpdateDriverCommandHandlerTests
 
         var command = new UpdateDriverCommand
         {
-            Id = existing.Id,
             Name = "Maria Updated",
             LicenseNumber = existing.LicenseNumber,
             LicenseExpirationDate = DateTime.UtcNow.AddYears(2)
         };
 
-        _validatorMock
-            .Setup(v => v.Validate(It.IsAny<ValidationContext<UpdateDriverCommand>>()))
-            .Returns(new FluentValidation.Results.ValidationResult());
+        SetupValidValidation();
 
         _driverRepositoryMock
             .Setup(r => r.GetById(existing.Id))
@@ -124,10 +117,10 @@ public class UpdateDriverCommandHandlerTests
             .Setup(r => r.GetByLicenseNumber(command.LicenseNumber))
             .Returns(existing);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(existing.Id, command);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(command.Name, result.Value.Name);
+        Assert.Equal(command.Name, result.Value!.Name);
 
         _driverRepositoryMock.Verify(
             r => r.Update(existing),
@@ -136,5 +129,12 @@ public class UpdateDriverCommandHandlerTests
         _driverRepositoryMock.Verify(
             r => r.SaveChanges(),
             Times.Once);
+    }
+
+    private void SetupValidValidation()
+    {
+        _validatorMock
+            .Setup(v => v.Validate(It.IsAny<UpdateDriverCommand>()))
+            .Returns(new FluentValidation.Results.ValidationResult());
     }
 }

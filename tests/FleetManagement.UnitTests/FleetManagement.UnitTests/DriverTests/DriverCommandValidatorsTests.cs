@@ -200,7 +200,6 @@ public class DriverCommandValidatorsTests
     {
         return new UpdateDriverCommand
         {
-            Id = Guid.NewGuid(),
             Name = "Carlos",
             LicenseNumber = "12345678901",
             LicenseExpirationDate = DateTime.Today.AddYears(1)

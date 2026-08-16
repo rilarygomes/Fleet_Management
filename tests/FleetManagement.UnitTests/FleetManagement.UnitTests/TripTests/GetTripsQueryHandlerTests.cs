@@ -82,17 +82,38 @@ public class GetTripsQueryHandlerTests
     [Fact]
     public void Handle_Should_Filter_By_Date_Range()
     {
-        var trips = CreateTrips();
+        var baseDate = DateTime.UtcNow;
+
+        var trips = new List<Trip>
+    {
+        new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            baseDate.AddDays(1),
+            baseDate.AddDays(2)),
+
+        new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            baseDate.AddDays(3),
+            baseDate.AddDays(4))
+    };
 
         _tripRepositoryMock
             .Setup(r => r.GetAll())
             .Returns(trips);
 
-        var result = _handler.Handle(new GetTripsQuery
+        var query = new GetTripsQuery
         {
-            StartDate = DateTime.UtcNow.AddDays(3),
-            EndDate = DateTime.UtcNow.AddDays(5)
-        }).ToList();
+            StartDate = baseDate.AddDays(3),
+            EndDate = baseDate.AddDays(5)
+        };
+
+        var result = _handler
+            .Handle(query)
+            .ToList();
 
         Assert.Single(result);
         Assert.Equal(trips[1].Id, result[0].Id);

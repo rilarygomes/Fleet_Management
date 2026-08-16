@@ -28,21 +28,35 @@ public class UpdateTripCommandHandler
         _logger = logger;
     }
 
-    public Result<TripDto> Handle(UpdateTripCommand command)
+    public Result<TripDto> Handle(Guid id, UpdateTripCommand command)
     {
         _logger.LogInformation(
             "Updating trip {TripId}",
-            command.Id);
+            id);
 
-        _validator.ValidateAndThrow(command);
+        var validationResult = _validator.Validate(command);
 
-        var trip = _tripRepository.GetById(command.Id);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(
+                "; ",
+                validationResult.Errors.Select(error => error.ErrorMessage));
 
-        if (trip == null)
+            _logger.LogWarning(
+                "Trip {TripId} validation failed: {ValidationErrors}",
+                id,
+                errors);
+
+            return Result<TripDto>.Fail(errors);
+        }
+
+        var trip = _tripRepository.GetById(id);
+
+        if (trip is null)
         {
             _logger.LogWarning(
-                "Trip {TripId} not found.",
-                command.Id);
+                "Trip {TripId} not found",
+                id);
 
             return Result<TripDto>.Fail("Trip not found.");
         }
@@ -50,8 +64,8 @@ public class UpdateTripCommandHandler
         if (trip.StartDate <= DateTime.UtcNow)
         {
             _logger.LogWarning(
-                "Trip {TripId} has already started.",
-                command.Id);
+                "Trip {TripId} has already started",
+                id);
 
             return Result<TripDto>.Fail(
                 "Trip has already started and cannot be updated.");
@@ -59,27 +73,42 @@ public class UpdateTripCommandHandler
 
         var vehicle = _vehicleRepository.GetById(command.VehicleId);
 
-        if (vehicle == null)
+        if (vehicle is null)
         {
+            _logger.LogWarning(
+                "Vehicle {VehicleId} not found while updating Trip {TripId}",
+                command.VehicleId,
+                id);
+
             return Result<TripDto>.Fail("Vehicle not found.");
         }
 
         var driver = _driverRepository.GetById(command.DriverId);
 
-        if (driver == null)
+        if (driver is null)
         {
+            _logger.LogWarning(
+                "Driver {DriverId} not found while updating Trip {TripId}",
+                command.DriverId,
+                id);
+
             return Result<TripDto>.Fail("Driver not found.");
         }
 
         var conflictingVehicleTrip = _tripRepository
             .GetTripsByVehicle(command.VehicleId)
             .FirstOrDefault(t =>
-                t.Id != command.Id &&
+                t.Id != id &&
                 t.StartDate < command.EndDate &&
                 command.StartDate < t.EndDate);
 
-        if (conflictingVehicleTrip != null)
+        if (conflictingVehicleTrip is not null)
         {
+            _logger.LogWarning(
+                "Vehicle {VehicleId} has a conflicting trip {ConflictingTripId}",
+                command.VehicleId,
+                conflictingVehicleTrip.Id);
+
             return Result<TripDto>.Fail(
                 $"Vehicle is already assigned to another trip from {conflictingVehicleTrip.StartDate} to {conflictingVehicleTrip.EndDate}.");
         }
@@ -87,12 +116,17 @@ public class UpdateTripCommandHandler
         var conflictingDriverTrip = _tripRepository
             .GetTripsByDriver(command.DriverId)
             .FirstOrDefault(t =>
-                t.Id != command.Id &&
+                t.Id != id &&
                 t.StartDate < command.EndDate &&
                 command.StartDate < t.EndDate);
 
-        if (conflictingDriverTrip != null)
+        if (conflictingDriverTrip is not null)
         {
+            _logger.LogWarning(
+                "Driver {DriverId} has a conflicting trip {ConflictingTripId}",
+                command.DriverId,
+                conflictingDriverTrip.Id);
+
             return Result<TripDto>.Fail(
                 $"Driver is already assigned to another trip from {conflictingDriverTrip.StartDate} to {conflictingDriverTrip.EndDate}.");
         }
@@ -107,8 +141,8 @@ public class UpdateTripCommandHandler
         _tripRepository.SaveChanges();
 
         _logger.LogInformation(
-            "Trip {TripId} updated successfully.",
-            trip.Id);
+            "Trip {TripId} updated successfully",
+            id);
 
         return Result<TripDto>.Ok(new TripDto
         {

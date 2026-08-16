@@ -36,15 +36,16 @@ public class UpdateTripCommandHandlerTests
     [Fact]
     public void Handle_Should_Fail_When_Trip_Not_Found()
     {
+        var tripId = Guid.NewGuid();
         var command = CreateValidCommand();
 
         SetupValidValidation();
 
         _tripRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(tripId))
             .Returns((Trip?)null);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(tripId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("Trip not found.", result.Error);
@@ -53,22 +54,23 @@ public class UpdateTripCommandHandlerTests
     [Fact]
     public void Handle_Should_Fail_When_Trip_Already_Started()
     {
+        var tripId = Guid.NewGuid();
         var command = CreateValidCommand();
 
         SetupValidValidation();
 
         var existing = new Trip(
-            command.Id,
+            tripId,
             Guid.NewGuid(),
             Guid.NewGuid(),
             DateTime.UtcNow.AddMinutes(-1),
             DateTime.UtcNow.AddDays(1));
 
         _tripRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(tripId))
             .Returns(existing);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(tripId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(
@@ -79,21 +81,22 @@ public class UpdateTripCommandHandlerTests
     [Fact]
     public void Handle_Should_Fail_When_Vehicle_Not_Found()
     {
+        var tripId = Guid.NewGuid();
         var command = CreateValidCommand();
 
         SetupValidValidation();
 
-        var existing = CreateFutureTrip(command.Id);
+        var existing = CreateFutureTrip(tripId);
 
         _tripRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(tripId))
             .Returns(existing);
 
         _vehicleRepositoryMock
             .Setup(r => r.GetById(command.VehicleId))
             .Returns((Vehicle?)null);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(tripId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("Vehicle not found.", result.Error);
@@ -102,14 +105,15 @@ public class UpdateTripCommandHandlerTests
     [Fact]
     public void Handle_Should_Fail_When_Driver_Not_Found()
     {
+        var tripId = Guid.NewGuid();
         var command = CreateValidCommand();
 
         SetupValidValidation();
 
-        var existing = CreateFutureTrip(command.Id);
+        var existing = CreateFutureTrip(tripId);
 
         _tripRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(tripId))
             .Returns(existing);
 
         _vehicleRepositoryMock
@@ -124,7 +128,7 @@ public class UpdateTripCommandHandlerTests
             .Setup(r => r.GetById(command.DriverId))
             .Returns((Driver?)null);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(tripId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("Driver not found.", result.Error);
@@ -133,14 +137,15 @@ public class UpdateTripCommandHandlerTests
     [Fact]
     public void Handle_Should_Succeed_When_Trip_Is_Valid()
     {
+        var tripId = Guid.NewGuid();
         var command = CreateValidCommand();
 
         SetupValidValidation();
 
-        var existing = CreateFutureTrip(command.Id);
+        var existing = CreateFutureTrip(tripId);
 
         _tripRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(tripId))
             .Returns(existing);
 
         _vehicleRepositoryMock
@@ -167,7 +172,7 @@ public class UpdateTripCommandHandlerTests
             .Setup(r => r.GetTripsByDriver(command.DriverId))
             .Returns(new List<Trip>());
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(tripId, command);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(command.VehicleId, result.Value.VehicleId);
@@ -186,7 +191,6 @@ public class UpdateTripCommandHandlerTests
     {
         return new UpdateTripCommand
         {
-            Id = Guid.NewGuid(),
             VehicleId = Guid.NewGuid(),
             DriverId = Guid.NewGuid(),
             StartDate = DateTime.UtcNow.AddDays(5),
@@ -207,8 +211,7 @@ public class UpdateTripCommandHandlerTests
     private void SetupValidValidation()
     {
         _validatorMock
-            .Setup(v => v.Validate(
-                It.IsAny<ValidationContext<UpdateTripCommand>>()))
+            .Setup(v => v.Validate(It.IsAny<UpdateTripCommand>()))
             .Returns(new FluentValidation.Results.ValidationResult());
     }
 }

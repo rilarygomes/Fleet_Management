@@ -22,31 +22,46 @@ public class UpdateDriverCommandHandler
         _logger = logger;
     }
 
-    public Result<DriverDto> Handle(UpdateDriverCommand command)
+    public Result<DriverDto> Handle(Guid id, UpdateDriverCommand command)
     {
         _logger.LogInformation(
             "Updating driver {DriverId}",
-            command.Id);
+            id);
 
-        _validator.ValidateAndThrow(command);
+        var validationResult = _validator.Validate(command);
 
-        var driver = _driverRepository.GetById(command.Id);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(
+                "; ",
+                validationResult.Errors.Select(error => error.ErrorMessage));
 
-        if (driver == null)
+            _logger.LogWarning(
+                "Driver {DriverId} validation failed: {ValidationErrors}",
+                id,
+                errors);
+
+            return Result<DriverDto>.Fail(errors);
+        }
+
+        var driver = _driverRepository.GetById(id);
+
+        if (driver is null)
         {
             _logger.LogWarning(
-                "Driver {DriverId} not found.",
-                command.Id);
+                "Driver {DriverId} not found",
+                id);
 
             return Result<DriverDto>.Fail("Driver not found.");
         }
 
-        var duplicate = _driverRepository.GetByLicenseNumber(command.LicenseNumber);
+        var duplicate = _driverRepository
+            .GetByLicenseNumber(command.LicenseNumber);
 
-        if (duplicate != null && duplicate.Id != command.Id)
+        if (duplicate is not null && duplicate.Id != id)
         {
             _logger.LogWarning(
-                "License number {LicenseNumber} already belongs to another driver.",
+                "License number {LicenseNumber} already belongs to another driver",
                 command.LicenseNumber);
 
             return Result<DriverDto>.Fail(
@@ -62,8 +77,8 @@ public class UpdateDriverCommandHandler
         _driverRepository.SaveChanges();
 
         _logger.LogInformation(
-            "Driver {DriverId} updated successfully.",
-            driver.Id);
+            "Driver {DriverId} updated successfully",
+            id);
 
         return Result<DriverDto>.Ok(new DriverDto
         {

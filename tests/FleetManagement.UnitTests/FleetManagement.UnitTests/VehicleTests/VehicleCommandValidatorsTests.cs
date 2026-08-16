@@ -137,7 +137,6 @@ public class VehicleCommandValidatorsTests
     {
         return new UpdateVehicleCommand
         {
-            Id = Guid.NewGuid(),
             LicensePlate = "XYZ9876",
             Model = "Honda Civic",
             Year = DateTime.Now.Year

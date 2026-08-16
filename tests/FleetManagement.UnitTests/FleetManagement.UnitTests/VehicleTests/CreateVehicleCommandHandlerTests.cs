@@ -74,7 +74,7 @@ public class CreateVehicleCommandHandlerTests
         var result = _handler.Handle(command);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(command.LicensePlate, result.Value.LicensePlate);
+        Assert.Equal(command.LicensePlate, result.Value!.LicensePlate);
         Assert.Equal(command.Model, result.Value.Model);
         Assert.Equal(command.Year, result.Value.Year);
 
@@ -90,8 +90,7 @@ public class CreateVehicleCommandHandlerTests
     private void SetupValidValidation()
     {
         _validatorMock
-            .Setup(v => v.Validate(
-                It.IsAny<ValidationContext<CreateVehicleCommand>>()))
+            .Setup(v => v.Validate(It.IsAny<CreateVehicleCommand>()))
             .Returns(new FluentValidation.Results.ValidationResult());
     }
 }

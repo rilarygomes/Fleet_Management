@@ -30,15 +30,16 @@ public class UpdateVehicleCommandHandlerTests
     [Fact]
     public void Handle_Should_Fail_When_Vehicle_Not_Found()
     {
+        var vehicleId = Guid.NewGuid();
         var command = CreateValidCommand();
 
         SetupValidValidation();
 
         _vehicleRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(vehicleId))
             .Returns((Vehicle?)null);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(vehicleId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("Vehicle not found.", result.Error);
@@ -47,8 +48,10 @@ public class UpdateVehicleCommandHandlerTests
     [Fact]
     public void Handle_Should_Fail_When_LicensePlate_Belongs_To_Another_Vehicle()
     {
+        var vehicleId = Guid.NewGuid();
+
         var existing = new Vehicle(
-            Guid.NewGuid(),
+            vehicleId,
             "ABC1234",
             "Fiat Uno",
             2020);
@@ -61,7 +64,6 @@ public class UpdateVehicleCommandHandlerTests
 
         var command = new UpdateVehicleCommand
         {
-            Id = existing.Id,
             LicensePlate = duplicate.LicensePlate,
             Model = "Fiat Uno Updated",
             Year = 2021
@@ -70,14 +72,14 @@ public class UpdateVehicleCommandHandlerTests
         SetupValidValidation();
 
         _vehicleRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(vehicleId))
             .Returns(existing);
 
         _vehicleRepositoryMock
             .Setup(r => r.GetByLicensePlate(command.LicensePlate))
             .Returns(duplicate);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(vehicleId, command);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(
@@ -88,15 +90,16 @@ public class UpdateVehicleCommandHandlerTests
     [Fact]
     public void Handle_Should_Succeed_When_Vehicle_Exists()
     {
+        var vehicleId = Guid.NewGuid();
+
         var existing = new Vehicle(
-            Guid.NewGuid(),
+            vehicleId,
             "ABC1234",
             "Fiat Uno",
             2020);
 
         var command = new UpdateVehicleCommand
         {
-            Id = existing.Id,
             LicensePlate = "XYZ9876",
             Model = "Toyota Corolla",
             Year = 2022
@@ -105,17 +108,17 @@ public class UpdateVehicleCommandHandlerTests
         SetupValidValidation();
 
         _vehicleRepositoryMock
-            .Setup(r => r.GetById(command.Id))
+            .Setup(r => r.GetById(vehicleId))
             .Returns(existing);
 
         _vehicleRepositoryMock
             .Setup(r => r.GetByLicensePlate(command.LicensePlate))
             .Returns((Vehicle?)null);
 
-        var result = _handler.Handle(command);
+        var result = _handler.Handle(vehicleId, command);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(command.LicensePlate, result.Value.LicensePlate);
+        Assert.Equal(command.LicensePlate, result.Value!.LicensePlate);
         Assert.Equal(command.Model, result.Value.Model);
 
         _vehicleRepositoryMock.Verify(
@@ -131,7 +134,6 @@ public class UpdateVehicleCommandHandlerTests
     {
         return new UpdateVehicleCommand
         {
-            Id = Guid.NewGuid(),
             LicensePlate = "XYZ9876",
             Model = "Toyota Corolla",
             Year = 2022
@@ -141,8 +143,7 @@ public class UpdateVehicleCommandHandlerTests
     private void SetupValidValidation()
     {
         _validatorMock
-            .Setup(v => v.Validate(
-                It.IsAny<ValidationContext<UpdateVehicleCommand>>()))
+            .Setup(v => v.Validate(It.IsAny<UpdateVehicleCommand>()))
             .Returns(new FluentValidation.Results.ValidationResult());
     }
 }

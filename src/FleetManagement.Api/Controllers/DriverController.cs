@@ -1,4 +1,5 @@
-﻿using FleetManagement.Api.Swagger;
+﻿using FleetManagement.Api.Common;
+using FleetManagement.Api.Swagger;
 using FleetManagement.Application.Drivers.Commands.CreateDriver;
 using FleetManagement.Application.Drivers.Commands.DeleteDriver;
 using FleetManagement.Application.Drivers.Commands.UpdateDriver;
@@ -35,7 +36,9 @@ public class DriverController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<DriverDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(IEnumerable<DriverDto>),
+        StatusCodes.Status200OK)]
     public IActionResult GetAll([FromQuery] string? name)
     {
         var query = new GetDriversQuery
@@ -49,8 +52,11 @@ public class DriverController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(DriverDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(DriverDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status404NotFound)]
     [SwaggerResponseExample(
         StatusCodes.Status200OK,
         typeof(DriverDtoExample))]
@@ -63,60 +69,87 @@ public class DriverController : ControllerBase
 
         var result = _getDriverHandler.Handle(query);
 
-        if (result == null)
+        if (result is null)
             return NotFound();
 
         return Ok(result);
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(DriverDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse<DriverDto>),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     [SwaggerRequestExample(
         typeof(CreateDriverCommand),
         typeof(CreateDriverCommandExample))]
-    [SwaggerResponseExample(
-        StatusCodes.Status201Created,
-        typeof(DriverDtoExample))]
-    public IActionResult Create([FromBody] CreateDriverCommand command)
+    public IActionResult Create(
+        [FromBody] CreateDriverCommand command)
     {
         var result = _createDriverHandler.Handle(command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to create driver."
+            });
+        }
 
         return CreatedAtAction(
             nameof(GetById),
-            new { id = result.Value.Id },
-            result.Value);
+            new { id = result.Value!.Id },
+            new ApiResponse<DriverDto>
+            {
+                Success = true,
+                Message = "Driver created successfully.",
+                Data = result.Value
+            });
     }
 
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(DriverDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse<DriverDto>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     [SwaggerRequestExample(
         typeof(UpdateDriverCommand),
         typeof(UpdateDriverCommandExample))]
-    [SwaggerResponseExample(
-        StatusCodes.Status200OK,
-        typeof(DriverDtoExample))]
     public IActionResult Update(
         Guid id,
         [FromBody] UpdateDriverCommand command)
     {
-        command.Id = id;
-
-        var result = _updateDriverHandler.Handle(command);
+        var result = _updateDriverHandler.Handle(id, command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to update driver."
+            });
+        }
 
-        return Ok(result.Value);
+        return Ok(new ApiResponse<DriverDto>
+        {
+            Success = true,
+            Message = "Driver updated successfully.",
+            Data = result.Value
+        });
     }
 
     [HttpDelete("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     public IActionResult Delete(Guid id)
     {
         var command = new DeleteDriverCommand
@@ -127,8 +160,18 @@ public class DriverController : ControllerBase
         var result = _deleteDriverHandler.Handle(command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to delete driver."
+            });
+        }
 
-        return NoContent();
+        return Ok(new ApiResponse
+        {
+            Success = true,
+            Message = "Driver deleted successfully."
+        });
     }
 }

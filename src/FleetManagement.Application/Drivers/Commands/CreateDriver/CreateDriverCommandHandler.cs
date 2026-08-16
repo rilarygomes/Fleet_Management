@@ -28,9 +28,23 @@ public class CreateDriverCommandHandler
             "Creating driver with LicenseNumber {LicenseNumber}",
             command.LicenseNumber);
 
-        _validator.ValidateAndThrow(command);
+        var validationResult = _validator.Validate(command);
 
-        var existing = _driverRepository.GetByLicenseNumber(command.LicenseNumber);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(
+                "; ",
+                validationResult.Errors.Select(error => error.ErrorMessage));
+
+            _logger.LogWarning(
+                "Driver creation validation failed: {ValidationErrors}",
+                errors);
+
+            return Result<DriverDto>.Fail(errors);
+        }
+
+        var existing = _driverRepository
+            .GetByLicenseNumber(command.LicenseNumber);
 
         if (existing is not null)
         {

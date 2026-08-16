@@ -148,7 +148,7 @@ public class CreateTripCommandHandlerTests
         var result = _handler.Handle(command);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(command.VehicleId, result.Value.VehicleId);
+        Assert.Equal(command.VehicleId, result.Value!.VehicleId);
         Assert.Equal(command.DriverId, result.Value.DriverId);
         Assert.Equal(command.StartDate, result.Value.StartDate);
         Assert.Equal(command.EndDate, result.Value.EndDate);
@@ -176,8 +176,7 @@ public class CreateTripCommandHandlerTests
     private void SetupValidValidation()
     {
         _validatorMock
-            .Setup(v => v.Validate(
-                It.IsAny<ValidationContext<CreateTripCommand>>()))
+            .Setup(v => v.Validate(It.IsAny<CreateTripCommand>()))
             .Returns(new FluentValidation.Results.ValidationResult());
     }
 

@@ -130,7 +130,6 @@ public class TripCommandValidatorsTests
     {
         return new UpdateTripCommand
         {
-            Id = Guid.NewGuid(),
             VehicleId = Guid.NewGuid(),
             DriverId = Guid.NewGuid(),
             StartDate = DateTime.Today.AddDays(1),

@@ -1,4 +1,5 @@
-﻿using FleetManagement.Api.Swagger;
+﻿using FleetManagement.Api.Common;
+using FleetManagement.Api.Swagger;
 using FleetManagement.Application.Vehicles.Commands.CreateVehicle;
 using FleetManagement.Application.Vehicles.Commands.DeleteVehicle;
 using FleetManagement.Application.Vehicles.Commands.UpdateVehicle;
@@ -35,7 +36,9 @@ public class VehicleController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<VehicleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(IEnumerable<VehicleDto>),
+        StatusCodes.Status200OK)]
     public IActionResult GetAll([FromQuery] string? licensePlate)
     {
         var query = new GetVehiclesQuery
@@ -49,8 +52,11 @@ public class VehicleController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(VehicleDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(VehicleDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status404NotFound)]
     [SwaggerResponseExample(
         StatusCodes.Status200OK,
         typeof(VehicleDtoExample))]
@@ -63,60 +69,87 @@ public class VehicleController : ControllerBase
 
         var result = _getVehicleHandler.Handle(query);
 
-        if (result == null)
+        if (result is null)
             return NotFound();
 
         return Ok(result);
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(VehicleDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse<VehicleDto>),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     [SwaggerRequestExample(
         typeof(CreateVehicleCommand),
         typeof(CreateVehicleCommandExample))]
-    [SwaggerResponseExample(
-        StatusCodes.Status201Created,
-        typeof(VehicleDtoExample))]
-    public IActionResult Create([FromBody] CreateVehicleCommand command)
+    public IActionResult Create(
+        [FromBody] CreateVehicleCommand command)
     {
         var result = _createVehicleHandler.Handle(command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to create vehicle."
+            });
+        }
 
         return CreatedAtAction(
             nameof(GetById),
-            new { id = result.Value.Id },
-            result.Value);
+            new { id = result.Value!.Id },
+            new ApiResponse<VehicleDto>
+            {
+                Success = true,
+                Message = "Vehicle created successfully.",
+                Data = result.Value
+            });
     }
 
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(VehicleDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse<VehicleDto>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     [SwaggerRequestExample(
         typeof(UpdateVehicleCommand),
         typeof(UpdateVehicleCommandExample))]
-    [SwaggerResponseExample(
-        StatusCodes.Status200OK,
-        typeof(VehicleDtoExample))]
     public IActionResult Update(
         Guid id,
         [FromBody] UpdateVehicleCommand command)
     {
-        command.Id = id;
-
-        var result = _updateVehicleHandler.Handle(command);
+        var result = _updateVehicleHandler.Handle(id, command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to update vehicle."
+            });
+        }
 
-        return Ok(result.Value);
+        return Ok(new ApiResponse<VehicleDto>
+        {
+            Success = true,
+            Message = "Vehicle updated successfully.",
+            Data = result.Value
+        });
     }
 
     [HttpDelete("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ApiResponse),
+        StatusCodes.Status400BadRequest)]
     public IActionResult Delete(Guid id)
     {
         var command = new DeleteVehicleCommand
@@ -127,8 +160,18 @@ public class VehicleController : ControllerBase
         var result = _deleteVehicleHandler.Handle(command);
 
         if (!result.IsSuccess)
-            return BadRequest(new { Message = result.Error });
+        {
+            return BadRequest(new ApiResponse
+            {
+                Success = false,
+                Message = result.Error ?? "Unable to delete vehicle."
+            });
+        }
 
-        return NoContent();
+        return Ok(new ApiResponse
+        {
+            Success = true,
+            Message = "Vehicle deleted successfully."
+        });
     }
 }

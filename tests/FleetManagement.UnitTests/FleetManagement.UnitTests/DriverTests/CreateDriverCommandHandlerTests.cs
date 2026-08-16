@@ -35,9 +35,7 @@ public class CreateDriverCommandHandlerTests
             LicenseExpirationDate = DateTime.Today.AddYears(1)
         };
 
-        _validatorMock
-            .Setup(v => v.Validate(It.IsAny<ValidationContext<CreateDriverCommand>>()))
-            .Returns(new FluentValidation.Results.ValidationResult());
+        SetupValidValidation();
 
         _driverRepositoryMock
             .Setup(r => r.GetByLicenseNumber(command.LicenseNumber))
@@ -65,9 +63,7 @@ public class CreateDriverCommandHandlerTests
             LicenseExpirationDate = DateTime.Today.AddYears(1)
         };
 
-        _validatorMock
-            .Setup(v => v.Validate(It.IsAny<ValidationContext<CreateDriverCommand>>()))
-            .Returns(new FluentValidation.Results.ValidationResult());
+        SetupValidValidation();
 
         _driverRepositoryMock
             .Setup(r => r.GetByLicenseNumber(command.LicenseNumber))
@@ -76,7 +72,7 @@ public class CreateDriverCommandHandlerTests
         var result = _handler.Handle(command);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(command.Name, result.Value.Name);
+        Assert.Equal(command.Name, result.Value!.Name);
         Assert.Equal(command.LicenseNumber, result.Value.LicenseNumber);
 
         _driverRepositoryMock.Verify(
@@ -86,5 +82,12 @@ public class CreateDriverCommandHandlerTests
         _driverRepositoryMock.Verify(
             r => r.SaveChanges(),
             Times.Once);
+    }
+
+    private void SetupValidValidation()
+    {
+        _validatorMock
+            .Setup(v => v.Validate(It.IsAny<CreateDriverCommand>()))
+            .Returns(new FluentValidation.Results.ValidationResult());
     }
 }
